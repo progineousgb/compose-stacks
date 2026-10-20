@@ -1,0 +1,21 @@
+name: vaultwarden
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:1.37.4
+    restart: unless-stopped
+    environment:
+      DOMAIN: https://${VW_HOST:?set VW_HOST in .env}
+      SIGNUPS_ALLOWED: ${SIGNUPS_ALLOWED:-false}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    volumes:
+      - vw_data:/data
+    networks:
+      - proxy
+
+volumes:
+  vw_data:
+
+networks:
+  proxy:
+    external: true

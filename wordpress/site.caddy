@@ -1,0 +1,4 @@
+blog.example.com {
+	import common
+	reverse_proxy wordpress:80
+}

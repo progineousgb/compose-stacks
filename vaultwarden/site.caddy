@@ -1,0 +1,4 @@
+vault.example.com {
+	import common
+	reverse_proxy vaultwarden:80
+}

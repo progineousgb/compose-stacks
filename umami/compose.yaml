@@ -1,0 +1,37 @@
+name: umami
+
+services:
+  umami:
+    image: ghcr.io/umami-software/umami:3.4.0
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://umami:${DB_PASSWORD:?set DB_PASSWORD in .env}@db:5432/umami
+      APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - default
+      - proxy
+
+  db:
+    image: postgres:17.11
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
+
+networks:
+  proxy:
+    external: true

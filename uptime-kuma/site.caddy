@@ -1,0 +1,4 @@
+status.example.com {
+	import common
+	reverse_proxy uptime-kuma:3001
+}

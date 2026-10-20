@@ -1,0 +1,4 @@
+stats.example.com {
+	import common
+	reverse_proxy umami:3000
+}

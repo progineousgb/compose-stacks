@@ -1,0 +1,68 @@
+name: nextcloud
+
+services:
+  nextcloud:
+    image: nextcloud:34.0.5-apache
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      MYSQL_HOST: db
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      REDIS_HOST: redis
+      NEXTCLOUD_ADMIN_USER: ${ADMIN_USER:-admin}
+      NEXTCLOUD_ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_HOST:?set NEXTCLOUD_HOST in .env}
+      OVERWRITEPROTOCOL: https
+      OVERWRITECLIURL: https://${NEXTCLOUD_HOST}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
+      PHP_UPLOAD_LIMIT: ${PHP_UPLOAD_LIMIT:-2G}
+      PHP_MEMORY_LIMIT: ${PHP_MEMORY_LIMIT:-512M}
+    volumes:
+      - nc_html:/var/www/html
+    networks:
+      - default
+      - proxy
+
+  cron:
+    image: nextcloud:34.0.5-apache
+    restart: unless-stopped
+    entrypoint: /cron.sh
+    depends_on:
+      - nextcloud
+    volumes:
+      - nc_html:/var/www/html
+
+  db:
+    image: mariadb:11.8.9
+    restart: unless-stopped
+    command: --transaction-isolation=READ-COMMITTED
+    environment:
+      MARIADB_DATABASE: nextcloud
+      MARIADB_USER: nextcloud
+      MARIADB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in .env}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8.6.7
+    restart: unless-stopped
+
+volumes:
+  nc_html:
+  db_data:
+
+networks:
+  proxy:
+    external: true
