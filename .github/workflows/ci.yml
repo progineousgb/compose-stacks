@@ -1,0 +1,31 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stacks pass with every value set
+        run: |
+          for d in */; do
+            [ -f "$d/compose.yaml" ] || continue
+            (cd "$d" && sed 's/=$/=placeholder/' .env.example > .env && docker compose config -q && echo "ok $d")
+            rm -f "$d/.env"
+          done
+      - name: Stacks fail while a required secret is empty
+        run: |
+          for d in */; do
+            [ -f "$d/compose.yaml" ] || continue
+            grep -qE '^[A-Z_]+=$' "$d/.env.example" || continue
+            cp "$d/.env.example" "$d/.env"
+            if (cd "$d" && docker compose config -q 2>/dev/null); then
+              grep -E '^[A-Z_]+=$' "$d/.env.example" | while IFS== read -r k _; do
+                grep -q "\${$k:?" "$d/compose.yaml" && { echo "$d accepts empty $k"; exit 1; }
+              done || exit 1
+            fi
+            rm -f "$d/.env"
+            echo "ok $d"
+          done
