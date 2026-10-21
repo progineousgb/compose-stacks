@@ -35,7 +35,7 @@ cp site.caddy ../proxy/sites/vaultwarden.caddy && $EDITOR ../proxy/sites/vaultwa
 docker compose -f ../proxy/compose.yaml exec -w /etc/caddy caddy caddy reload
 ```
 
-Repeat for the other apps. Generate passwords with `openssl rand -hex 24`.
+Repeat for the other apps. Secrets in `.env.example` are empty on purpose. Each one is read as `${VAR:?}`, so `docker compose up` stops with an error until you set it. Generate passwords with `openssl rand -hex 24`.
 
 Open only 22, 80 and 443 in the firewall. Note that Docker writes its own iptables rules, so a port published with `ports:` bypasses UFW. That is why only Caddy publishes anything here.
 
@@ -55,10 +55,13 @@ Named volumes live under `/var/lib/docker/volumes`. Stop the stack or dump the d
 
 ## Validation
 
-Every stack is checked with `docker compose config` using its `.env.example`:
+CI checks every stack with `docker compose config`. Empty values in `.env.example` are filled with a placeholder, and the config must pass. Then the unmodified `.env.example` must fail wherever it has an empty required secret. To run the same check locally:
 
 ```bash
-for d in */; do (cd "$d" && cp .env.example .env && docker compose config -q && echo "ok $d"; rm .env); done
+for d in */; do
+  [ -f "$d/compose.yaml" ] || continue
+  (cd "$d" && sed 's/=$/=placeholder/' .env.example > .env && docker compose config -q && echo "ok $d"; rm -f .env)
+done
 ```
 
 ## License
