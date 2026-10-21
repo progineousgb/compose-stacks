@@ -19,12 +19,14 @@ jobs:
         run: |
           for d in */; do
             [ -f "$d/compose.yaml" ] || continue
-            grep -qE '^[A-Z_]+=$' "$d/.env.example" || continue
+            required=no
+            for k in $(sed -n 's/^\([A-Z0-9_]*\)=$/\1/p' "$d/.env.example"); do
+              if grep -q "\${$k:?" "$d/compose.yaml"; then required=yes; fi
+            done
+            [ "$required" = yes ] || continue
             cp "$d/.env.example" "$d/.env"
             if (cd "$d" && docker compose config -q 2>/dev/null); then
-              grep -E '^[A-Z_]+=$' "$d/.env.example" | while IFS== read -r k _; do
-                grep -q "\${$k:?" "$d/compose.yaml" && { echo "$d accepts empty $k"; exit 1; }
-              done || exit 1
+              echo "$d started with an empty required secret"; exit 1
             fi
             rm -f "$d/.env"
             echo "ok $d"
